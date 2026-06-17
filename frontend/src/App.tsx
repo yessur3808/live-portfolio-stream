@@ -40,6 +40,7 @@ export default function App() {
           gridTemplateColumns: { xs: "1fr", md: "5fr 1fr" },
           flex: 1,
           minHeight: 0,
+          maxHeight: "800px",
         }}
       >
         <Watchlist onSelect={setSelected} />

@@ -125,12 +125,15 @@ I have ordered these in the order from most impact on the product quality to lea
 
 - **Sorting.** Sort by price, day-change %, or other variables. This can including live re-sorting as values tick (with a toggle).
 
-- **Sparklines.** A tiny rolling chart per row, drawn on one shared canvas to stay off
+- **Inline price updates.** A tiny rolling chart per row, drawn on one shared canvas to stay off
   the React path.
+
+- **Responsive mobile layout.** Adjust the tables into stacked cards on small screens,
+  with touch-friendly targets and the detail view as a bottom sheet or overlay.
 
 - **Virtualized watchlist.** Mount only the rows in view for large symbol universes.
   
-- **Worker decode.** Move WS decode into a Web Worker so the main thread only paints.
+- ~ **Worker decode.** Maybe move WS decode into a Web Worker so the main thread only paints.
 
 - **Ticker Symbols & Icons** Add Ticker symbols. and icons to help present the tokens better and increase regonizability
 
