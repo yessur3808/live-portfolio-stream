@@ -8,7 +8,7 @@ const colorMap: Record<string, "warning" | "success" | "error" | "default"> = {
   stale: "error",
 };
 
-const ConnBadge = () => {
+export const ConnBadge = () => {
   const conn = useApp((s) => s.conn);
   return (
     <Chip
@@ -19,5 +19,3 @@ const ConnBadge = () => {
     />
   );
 };
-
-export default ConnBadge;

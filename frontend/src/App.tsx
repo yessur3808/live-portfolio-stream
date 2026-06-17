@@ -3,10 +3,7 @@ import { Container, Box, Typography, Paper, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { connect, initVisibility } from "./lib/ws";
 import { startRafLoop } from "./lib/raf";
-import Watchlist from "./components/Watchlist";
-import Portfolio from "./components/Portfolio";
-import ConnBadge from "./components/ConnBadge";
-import PriceCell from "./components/PriceCell";
+import { Watchlist, Portfolio, ConnBadge, PriceCell } from "./components";
 
 export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -18,7 +15,10 @@ export default function App() {
   }, []);
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container
+      maxWidth="md"
+      sx={{ py: 4, height: "100vh", display: "flex", flexDirection: "column" }}
+    >
       <Box
         sx={{
           display: "flex",
@@ -37,7 +37,9 @@ export default function App() {
         sx={{
           display: "grid",
           gap: 3,
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", md: "5fr 1fr" },
+          flex: 1,
+          minHeight: 0,
         }}
       >
         <Watchlist onSelect={setSelected} />

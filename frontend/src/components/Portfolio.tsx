@@ -3,7 +3,7 @@ import { Paper, Box, Typography, Divider } from "@mui/material";
 import { useApp, prices } from "../lib/store";
 import { subscribeSymbol } from "../lib/raf";
 
-const Portfolio = () => {
+export const Portfolio = () => {
   const positions = useApp((s) => s.positions);
   const totalRef = useRef<HTMLSpanElement>(null);
   const rowRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -90,5 +90,3 @@ const Portfolio = () => {
     </Paper>
   );
 };
-
-export default Portfolio;

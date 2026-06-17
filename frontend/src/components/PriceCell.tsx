@@ -1,7 +1,36 @@
 import { useEffect, useRef } from "react";
-import { Box } from "@mui/material";
+import { Box, styled } from "@mui/material";
 import { prices } from "../lib/store";
 import { subscribeSymbol } from "../lib/raf";
+
+const PriceCellContainer = styled(Box)({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 1.5,
+  width: "100%",
+  minWidth: 0,
+});
+
+const QuoteCell = styled("span")({
+  fontSize: 15,
+  fontWeight: 600,
+  lineHeight: 1.2,
+  color: "text.primary",
+  borderRadius: 1,
+  px: 0.5,
+  whiteSpace: "nowrap",
+});
+
+const ChangeCell = styled("span")({
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1,
+  px: 1,
+  py: 0.5,
+  borderRadius: 999,
+  whiteSpace: "nowrap",
+});
 
 const formatPrice = (n: number) => {
   if (n >= 1000)
@@ -10,7 +39,7 @@ const formatPrice = (n: number) => {
   return n.toFixed(5);
 };
 
-const PriceCell = ({ symbol }: { symbol: string }) => {
+export const PriceCell = ({ symbol }: { symbol: string }) => {
   const priceRef = useRef<HTMLSpanElement>(null);
   const changeRef = useRef<HTMLSpanElement>(null);
   const prevPrice = useRef<number>(prices.get(symbol)?.last ?? 0);
@@ -48,45 +77,15 @@ const PriceCell = ({ symbol }: { symbol: string }) => {
   const isPositive = (quote?.dayChangePct ?? 0) >= 0;
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 1.5,
-        width: "100%",
-        minWidth: 0,
-      }}
-    >
-      <Box
-        component="span"
-        ref={priceRef}
-        className="tabular-nums"
-        sx={{
-          fontSize: 15,
-          fontWeight: 600,
-          lineHeight: 1.2,
-          color: "text.primary",
-          borderRadius: 1,
-          px: 0.5,
-          whiteSpace: "nowrap",
-        }}
-      >
+    <PriceCellContainer>
+      <QuoteCell ref={priceRef} className="tabular-nums">
         {quote ? formatPrice(quote.last) : "—"}
-      </Box>
+      </QuoteCell>
 
-      <Box
-        component="span"
+      <ChangeCell
         ref={changeRef}
         className="tabular-nums"
         sx={{
-          fontSize: 12,
-          fontWeight: 700,
-          lineHeight: 1,
-          px: 1,
-          py: 0.5,
-          borderRadius: 999,
-          whiteSpace: "nowrap",
           color: isPositive ? "#16a34a" : "#dc2626",
           backgroundColor: isPositive
             ? "rgba(22, 163, 74, 0.10)"
@@ -94,9 +93,7 @@ const PriceCell = ({ symbol }: { symbol: string }) => {
         }}
       >
         {quote ? `${quote.dayChangePct.toFixed(2)}%` : "—"}
-      </Box>
-    </Box>
+      </ChangeCell>
+    </PriceCellContainer>
   );
 };
-
-export default PriceCell;
