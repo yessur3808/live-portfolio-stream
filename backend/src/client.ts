@@ -1,7 +1,7 @@
 import { WebSocket } from "ws";
-import { Hub } from "./hub";
-import { ClientMsg, Client } from "./types";
-import { log } from "./logger";
+import { Hub } from "./hub.js";
+import { ClientMsg, Client } from "./types.js";
+import { log } from "./logger.js";
 
 const MAX_BUFFERED_BYTES = 1 << 20;
 const PING_INTERVAL_MS = 20_000;

@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
-import { log } from "./logger";
-import { createHub } from "./hub";
-import { handleConnection } from "./client";
-import { runIngest } from "./ingest";
+import { log } from "./logger.js";
+import { createHub } from "./hub.js";
+import { handleConnection } from "./client.js";
+import { runIngest } from "./ingest.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 

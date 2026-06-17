@@ -1,6 +1,6 @@
 import { WebSocket } from "ws";
-import { Hub } from "./hub";
-import { log } from "./logger";
+import { Hub } from "./hub.js";
+import { log } from "./logger.js";
 
 const HL_WS = "wss://api.hyperliquid-testnet.xyz/ws";
 const HL_INFO = "https://api.hyperliquid-testnet.xyz/info";
