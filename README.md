@@ -3,13 +3,13 @@
 A real-time crypto watchlist + mock portfolio that streams tick-by-tick quotes over
 WebSockets. The UI renders a screen full of constantly-changing numbers at 60fps,
 recovers from disconnects with sequence-based backfill, and reconciles correctly
-after the tab is backgrounded — without a visible reload.
+after the tab is "backgrounded", without any obvious visible reload.
 
 **Market chosen:** Top on-chain tokens (Solana / Ethereum / Base), 200+ symbols.
 
-- **Live demo (web):** <https://your-app.vercel.app>
-- **Live WebSocket endpoint:** `wss://your-backend.up.railway.app/ws`
-- **Loom walkthrough (3–5 min):** <https://loom.com/share/...>
+
+ 
+![Web App](./image.png)
 
 ---
 
