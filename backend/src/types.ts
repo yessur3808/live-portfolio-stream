@@ -26,3 +26,7 @@ export interface ClientMsg {
   type: "resume" | "hello";
   lastSeq?: number;
 }
+
+export interface Client {
+  enqueue: (payload: string) => void;
+}
