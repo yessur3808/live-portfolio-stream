@@ -2,7 +2,7 @@ import { Quote, FieldDiff, ServerMsg, Client } from "./types.js";
 import { log } from "./logger.js";
 
 const BATCH_INTERVAL_MS = 75;
-const RING_SIZE = 2000; // bounded in-memory replay buffer
+const RING_SIZE = 2000;
 
 interface RingEntry {
   seq: number;

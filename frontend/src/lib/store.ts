@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { recordPrice } from "./market";
 
 export type Quote = { last: number; dayChangePct: number; ts: number };
 export type Position = { symbol: string; qty: number; avgCost: number };
@@ -11,6 +12,7 @@ export const applySnapshot = (snap: Record<string, Quote>) => {
   prices.clear();
   for (const [sym, q] of Object.entries(snap)) {
     prices.set(sym, q);
+    recordPrice(sym, q.last);
     dirty.add(sym);
   }
 };
@@ -23,6 +25,7 @@ export const applyDiff = (changes: any[]) => {
     if (c.dayChangePct !== undefined) cur.dayChangePct = c.dayChangePct;
     cur.ts = c.ts;
     prices.set(c.symbol, cur);
+    if (cur.last > 0) recordPrice(c.symbol, cur.last);
     dirty.add(c.symbol);
   }
 };

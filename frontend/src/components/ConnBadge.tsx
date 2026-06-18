@@ -16,6 +16,13 @@ export const ConnBadge = () => {
       label={`● ${conn}`}
       color={colorMap[conn]}
       variant="outlined"
+      sx={{
+        borderRadius: "12px",
+        px: 0.5,
+        fontWeight: 700,
+        textTransform: "capitalize",
+        backdropFilter: "blur(12px)",
+      }}
     />
   );
 };
