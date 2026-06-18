@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   ButtonBase,
+  Chip,
   InputAdornment,
   Paper,
   Stack,
@@ -126,6 +127,9 @@ const compare = (
 
 export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
   const watchlist = useApp((s) => s.watchlist);
+  const symbolAlertCount = useApp((s) => s.symbolAlertCount);
+  const followedSymbols = useApp((s) => s.followedSymbols);
+  const toggleSymbolFollow = useApp((s) => s.toggleSymbolFollow);
   const stickyTopRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<WatchlistSort>("dayChangePct");
@@ -348,19 +352,45 @@ export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
               const name = getMarketName(symbol);
               const quote = prices.get(symbol);
               const isPositive = (quote?.dayChangePct ?? 0) >= 0;
+              const alertCount = symbolAlertCount[symbol] ?? 0;
+              const followed = followedSymbols.includes(symbol);
 
               return (
                 <SymbolButtonBase key={symbol} onClick={() => onSelect(symbol)}>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography
+                    <Box
                       sx={{
-                        fontWeight: 700,
-                        color: "text.primary",
-                        lineHeight: 1.15,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.8,
+                        minWidth: 0,
                       }}
                     >
-                      {symbol}
-                    </Typography>
+                      <Typography
+                        sx={{
+                          fontWeight: 700,
+                          color: "text.primary",
+                          lineHeight: 1.15,
+                        }}
+                      >
+                        {symbol}
+                      </Typography>
+                      {alertCount > 0 && (
+                        <Chip
+                          size="small"
+                          label={alertCount > 9 ? "9+" : alertCount}
+                          sx={{
+                            height: 19,
+                            bgcolor: "rgba(251,113,133,0.15)",
+                            border: "1px solid rgba(251,113,133,0.35)",
+                            color: "#fecdd3",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            ".MuiChip-label": { px: 0.65 },
+                          }}
+                        />
+                      )}
+                    </Box>
                     <Typography
                       sx={{ color: "text.secondary", fontSize: 12.5 }}
                       noWrap
@@ -400,8 +430,30 @@ export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
                       display: "flex",
                       justifyContent: "flex-end",
                       alignItems: "center",
+                      gap: 0.8,
                     }}
                   >
+                    <Chip
+                      size="small"
+                      label={followed ? "Following" : "Follow"}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleSymbolFollow(symbol);
+                      }}
+                      sx={{
+                        height: 20,
+                        bgcolor: followed
+                          ? "rgba(52,211,153,0.16)"
+                          : "rgba(255,255,255,0.06)",
+                        border: followed
+                          ? "1px solid rgba(52,211,153,0.4)"
+                          : "1px solid rgba(255,255,255,0.12)",
+                        color: followed ? "#6ee7b7" : "text.secondary",
+                        fontWeight: 700,
+                        fontSize: 10.5,
+                        ".MuiChip-label": { px: 0.8 },
+                      }}
+                    />
                     <Typography
                       sx={{
                         color: "text.secondary",

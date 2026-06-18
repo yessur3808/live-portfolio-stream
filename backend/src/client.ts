@@ -36,16 +36,33 @@ export function handleConnection(ws: WebSocket, hub: Hub) {
       msg = { type: "hello" };
     }
 
-    if (msg.type === "resume" && msg.lastSeq && msg.lastSeq > 0) {
-      const { msgs, ok } = hub.replaySince(msg.lastSeq);
-      if (ok) {
-        for (const m of msgs) enqueue(JSON.stringify(m));
+    if (msg.type === "resume") {
+      if (msg.lastSeq && msg.lastSeq > 0) {
+        const { msgs, ok } = hub.replaySince(msg.lastSeq);
+        if (ok) {
+          for (const m of msgs) enqueue(JSON.stringify(m));
+        } else {
+          enqueue(JSON.stringify(hub.snapshot()));
+        }
       } else {
         enqueue(JSON.stringify(hub.snapshot()));
       }
-    } else {
-      enqueue(JSON.stringify(hub.snapshot()));
+
+      if (msg.lastEventSeq && msg.lastEventSeq > 0) {
+        const { msgs, ok } = hub.replayEventsSince(msg.lastEventSeq);
+        if (ok) {
+          for (const m of msgs) enqueue(JSON.stringify(m));
+        } else {
+          enqueue(JSON.stringify(hub.eventSnapshot()));
+        }
+      } else {
+        enqueue(JSON.stringify(hub.eventSnapshot()));
+      }
+      return;
     }
+
+    enqueue(JSON.stringify(hub.snapshot()));
+    enqueue(JSON.stringify(hub.eventSnapshot()));
   }
 
   const pingTimer = setInterval(() => {

@@ -1,10 +1,17 @@
-import { applySnapshot, applyDiff, useApp } from "./store";
+import {
+  applySnapshot,
+  applyDiff,
+  applyEventBatch,
+  applyEventSnapshot,
+  useApp,
+} from "./store";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
 const STALE_MS = 5000;
 
 let socket: WebSocket | null = null;
 let lastSeq = 0;
+let lastEventSeq = 0;
 let lastTick = Date.now();
 let backoff = 500;
 let staleTimer: number | undefined;
@@ -31,8 +38,8 @@ export const connect = () => {
     backoff = 500;
     lastTick = Date.now();
     useApp.getState().setConn("connected");
-    // Resume from last applied seq; server replays or sends a snapshot.
-    socket!.send(JSON.stringify({ type: "resume", lastSeq }));
+    // Resume from last applied sequence numbers; server replays or sends snapshots.
+    socket!.send(JSON.stringify({ type: "resume", lastSeq, lastEventSeq }));
     if (staleTimer) clearInterval(staleTimer);
     staleTimer = window.setInterval(checkStale, 1000);
   };
@@ -55,6 +62,16 @@ export const connect = () => {
       case "heartbeat":
         // keeps lastTick, avoids stale state
         break;
+      case "eventSnapshot":
+        applyEventSnapshot(msg.events);
+        lastEventSeq = msg.eventSeq;
+        break;
+      case "eventBatch":
+        applyEventBatch(msg.events);
+        lastEventSeq = msg.eventSeq;
+        break;
+      case "eventHeartbeat":
+        break;
     }
   };
 
@@ -66,7 +83,7 @@ export const connect = () => {
   };
 
   socket.onerror = () => socket?.close();
-}
+};
 
 export const initVisibility = () => {
   document.addEventListener("visibilitychange", () => {
@@ -75,8 +92,8 @@ export const initVisibility = () => {
         connect();
       } else {
         // socket alive but possibly behind — re-resume to reconcile.
-        socket.send(JSON.stringify({ type: "resume", lastSeq }));
+        socket.send(JSON.stringify({ type: "resume", lastSeq, lastEventSeq }));
       }
     }
   });
-}
+};

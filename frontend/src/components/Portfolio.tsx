@@ -62,7 +62,7 @@ export const Portfolio = () => {
           >
             Portfolio
           </Typography>
-          <Typography sx={{ fontWeight: 700 }}>Live P&L snapshot</Typography>
+          <Typography sx={{ fontWeight: 700 }}>Live returns</Typography>
         </Box>
         <Typography
           component="span"
