@@ -23,6 +23,7 @@ import {
 
 export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [newsDrawerOpen, setNewsDrawerOpen] = useState(true);
   const [badgeInView, setBadgeInView] = useState(true);
   const badgeAnchorRef = useRef<HTMLDivElement | null>(null);
   const toast = useApp((s) => s.toastQueue[0]);
@@ -135,17 +136,15 @@ export default function App() {
           alignItems: "start",
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
-            xl: "minmax(0, 1.8fr) minmax(320px, 0.82fr)",
+            xl: "minmax(0, 1.55fr) minmax(320px, 0.9fr)",
           },
           gridTemplateAreas: {
             xs: `
               "watchlist"
               "portfolio"
-              "feed"
             `,
             xl: `
               "watchlist portfolio"
-              "feed portfolio"
             `,
           },
         }}
@@ -156,10 +155,12 @@ export default function App() {
         <Box sx={{ gridArea: "portfolio", minWidth: 0 }}>
           <Portfolio />
         </Box>
-        <Box sx={{ gridArea: "feed", minWidth: 0 }}>
-          <EventFeed />
-        </Box>
       </Box>
+
+      <EventFeed
+        newsDrawerOpen={newsDrawerOpen}
+        setNewsDrawerOpen={setNewsDrawerOpen}
+      />
 
       {selected && (
         <Paper
