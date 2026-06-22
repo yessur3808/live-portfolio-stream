@@ -21,9 +21,11 @@ const server = createServer((req, res) => {
   if (req.method === "POST" && req.url === "/admin/refresh-news") {
     void newsController
       .refreshNews()
-      .then(() => {
+      .then((result) => {
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ status: "refreshed" }));
+        res.end(
+          JSON.stringify({ status: "refreshed", emitted: result.emitted }),
+        );
       })
       .catch((error) => {
         res.writeHead(500, { "content-type": "application/json" });

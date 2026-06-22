@@ -152,7 +152,14 @@ export default function App() {
         <Box sx={{ gridArea: "watchlist", minWidth: 0 }}>
           <Watchlist onSelect={setSelected} />
         </Box>
-        <Box sx={{ gridArea: "portfolio", minWidth: 0 }}>
+        <Box
+          sx={{
+            gridArea: "portfolio",
+            minWidth: 0,
+            position: "sticky",
+            top: 0,
+          }}
+        >
           <Portfolio />
         </Box>
       </Box>

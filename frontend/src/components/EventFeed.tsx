@@ -1,4 +1,5 @@
 import VolumeOffRoundedIcon from "@mui/icons-material/VolumeOffRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
@@ -25,12 +26,32 @@ import { useApp } from "../lib/store";
 const TRACKED_TOPICS = ["fed", "macro", "news"];
 const NEWS_FEED_BUTTON_WIDTH = 150;
 const NEWS_FEED_PANEL_WIDTH = 800;
+const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
+const MIN_REFRESH_SPIN_MS = 500;
+
+const refreshEndpoint = (() => {
+  try {
+    const url = new URL(WS_URL);
+    url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+    url.pathname = "/admin/refresh-news";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "http://localhost:8080/admin/refresh-news";
+  }
+})();
 
 const severityColor = {
   low: "rgba(125,211,252,0.18)",
   medium: "rgba(250,204,21,0.18)",
   high: "rgba(251,113,133,0.18)",
 } as const;
+
+type RefreshResponse = {
+  status: string;
+  emitted?: number;
+};
 
 const TopicSwitch = styled(Switch)(({ theme }) => ({
   width: 46,
@@ -80,6 +101,8 @@ export const EventFeed = ({
   const toggleTopicMute = useApp((s) => s.toggleTopicMute);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
   const [pendingLink, setPendingLink] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState<string | null>(null);
 
   const menuOpen = Boolean(filterAnchor);
 
@@ -87,6 +110,44 @@ export const EventFeed = ({
     if (!pendingLink) return;
     window.open(pendingLink, "_blank", "noopener,noreferrer");
     setPendingLink(null);
+  };
+
+  const handleRefreshNews = async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    setRefreshStatus(null);
+    const startedAt = Date.now();
+    try {
+      const res = await fetch(refreshEndpoint, { method: "POST" });
+      if (!res.ok) {
+        throw new Error(`Refresh failed with status ${res.status}`);
+      }
+      const payload = (await res.json()) as RefreshResponse;
+      const remaining = Math.max(
+        0,
+        MIN_REFRESH_SPIN_MS - (Date.now() - startedAt),
+      );
+      if (remaining > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, remaining));
+      }
+      setRefreshStatus(
+        (payload.emitted ?? 0) > 0
+          ? `+${payload.emitted} new`
+          : "No new headlines",
+      );
+    } catch {
+      const remaining = Math.max(
+        0,
+        MIN_REFRESH_SPIN_MS - (Date.now() - startedAt),
+      );
+      if (remaining > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, remaining));
+      }
+      setRefreshStatus("Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -262,6 +323,38 @@ export const EventFeed = ({
                   fontWeight: 700,
                 }}
               />
+              <Tooltip title="Refresh headlines">
+                <IconButton
+                  size="small"
+                  onClick={handleRefreshNews}
+                  disabled={refreshing}
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderColor: "rgba(147,197,253,0.32)",
+                    border: "1px solid rgba(147,197,253,0.32)",
+                    color: refreshing ? "#bfdbfe" : "#93c5fd",
+                    backgroundColor: "rgba(96,165,250,0.08)",
+                    "&:hover": {
+                      borderColor: "rgba(147,197,253,0.5)",
+                      backgroundColor: "rgba(96,165,250,0.14)",
+                    },
+                  }}
+                >
+                  <RefreshRoundedIcon
+                    sx={{
+                      fontSize: 18,
+                      animation: refreshing
+                        ? "news-refresh-spin 0.7s linear infinite"
+                        : "none",
+                      "@keyframes news-refresh-spin": {
+                        from: { transform: "rotate(0deg)" },
+                        to: { transform: "rotate(360deg)" },
+                      },
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Filters">
                 <IconButton
                   size="small"
@@ -279,6 +372,7 @@ export const EventFeed = ({
               </Tooltip>
               <Chip
                 size="small"
+                label={refreshStatus ?? "Auto 30m"}
                 sx={{
                   height: 24,
                   border: "1px solid rgba(255,255,255,0.16)",

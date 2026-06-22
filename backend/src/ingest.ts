@@ -52,8 +52,12 @@ type SourceFeed = {
   ) => NewsItem[];
 };
 
+export type NewsRefreshResult = {
+  emitted: number;
+};
+
 export type NewsRefreshController = {
-  refreshNews: () => Promise<void>;
+  refreshNews: () => Promise<NewsRefreshResult>;
 };
 
 const prevDay = new Map<string, number>();
@@ -211,7 +215,7 @@ async function fetchPrevDay() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ type: "metaAndAssetCtxs" }),
     });
-    // Shape: [ { universe: [{ name }] }, [ { prevDayPx }, ... ] ]
+
     const parsed = (await res.json()) as any[];
     if (!Array.isArray(parsed) || parsed.length < 2) return;
 
@@ -276,6 +280,8 @@ const emitEvent = (
 
 const startNewsPolling = (hub: Hub): NewsRefreshController => {
   const poll = async (manual = false) => {
+    let emitted = 0;
+
     for (const feed of NEWS_FEEDS) {
       const lastRun = lastNewsAtBySource.get(feed.name) ?? 0;
       if (!manual && Date.now() - lastRun < NEWS_REFRESH_MS) continue;
@@ -337,6 +343,7 @@ const startNewsPolling = (hub: Hub): NewsRefreshController => {
             item.url,
           );
         }
+        emitted += freshItems.length;
 
         lastNewsAtBySource.set(feed.name, Date.now());
         lastNewsIdBySource.set(feed.name, seen);
@@ -351,6 +358,8 @@ const startNewsPolling = (hub: Hub): NewsRefreshController => {
         });
       }
     }
+
+    return { emitted };
   };
 
   void poll(true);

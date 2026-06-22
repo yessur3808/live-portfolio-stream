@@ -38,7 +38,7 @@ export const connect = () => {
     backoff = 500;
     lastTick = Date.now();
     useApp.getState().setConn("connected");
-    // Resume from last applied sequence numbers; server replays or sends snapshots.
+
     socket!.send(JSON.stringify({ type: "resume", lastSeq, lastEventSeq }));
     if (staleTimer) clearInterval(staleTimer);
     staleTimer = window.setInterval(checkStale, 1000);
@@ -91,7 +91,6 @@ export const initVisibility = () => {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
         connect();
       } else {
-        // socket alive but possibly behind — re-resume to reconcile.
         socket.send(JSON.stringify({ type: "resume", lastSeq, lastEventSeq }));
       }
     }

@@ -144,7 +144,6 @@ export const applyEventBatch = (events: LiveEvent[]) => {
   upsertEvents(events, false);
 };
 
-// Connection + portfolio state DO live in React state (they change rarely).
 type AppState = {
   conn: ConnState;
   setConn: (c: ConnState) => void;
