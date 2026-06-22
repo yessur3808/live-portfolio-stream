@@ -128,6 +128,11 @@ I have ordered these in the order from most impact on the product quality to lea
 - [x] **Inline price updates.** A tiny rolling chart per row, drawn on one shared canvas to stay off
   the React path.
 
+- [x] **Manual news refresh control.** Added an in-app refresh action with spinner feedback and
+  "no new headlines" handling when upstream feeds have not changed.
+
+- [x] **Configurable auto-refresh cadence.** Users can change news auto-refresh frequency from the news panel.
+
 - [ ] **Responsive mobile layout.** Adjust the tables into stacked cards on small screens,
   with touch-friendly targets and the detail view as a bottom sheet or overlay.
 
@@ -139,7 +144,13 @@ I have ordered these in the order from most impact on the product quality to lea
 
 ### Product & data
 
-- [ ] **Real venue feed.** Swap the mock generator for a live upstream, validated at the
-  ingest boundary.
+- [x] **Live public news sources.** Replaced mock news text generation with live public feed ingestion
+  (Fed + SEC sources) and deduped event emission into the existing event stream.
+
+- [x] **Manual + scheduled news refresh APIs.** Added backend endpoints for manual refresh and
+  refresh-interval settings (`/admin/refresh-news`, `/admin/news-settings`).
+
+- [ ] **Real venue feed (quotes).** Swap the quote generator for a production-grade upstream,
+  validated at the ingest boundary.
 
 - [ ] **Alerts.** Price/percent-move thresholds that fire a toast or push notification.
