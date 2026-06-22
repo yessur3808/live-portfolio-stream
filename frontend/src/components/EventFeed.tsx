@@ -149,7 +149,7 @@ export const EventFeed = ({
             borderRadius: "16px 0 0 16px",
             bgcolor: "rgba(15,20,31,0.98)",
             background:
-              "linear-gradient(180deg, rgba(24,31,46,0.98) 0%, rgba(14,19,30,0.98) 100%)",
+              "linear-gradient(180deg, rgb(54 76 123 / 98%) 0%, rgb(2 18 53 / 98%) 100%)",
             border: "1px solid rgba(255,255,255,0.1)",
             borderRight: 0,
             color: "text.primary",

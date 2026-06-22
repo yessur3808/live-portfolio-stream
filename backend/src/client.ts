@@ -40,7 +40,9 @@ export function handleConnection(ws: WebSocket, hub: Hub) {
       if (msg.lastSeq && msg.lastSeq > 0) {
         const { msgs, ok } = hub.replaySince(msg.lastSeq);
         if (ok) {
-          for (const m of msgs) enqueue(JSON.stringify(m));
+          for (const m of msgs) {
+            enqueue(JSON.stringify(m));
+          }
         } else {
           enqueue(JSON.stringify(hub.snapshot()));
         }
@@ -51,7 +53,9 @@ export function handleConnection(ws: WebSocket, hub: Hub) {
       if (msg.lastEventSeq && msg.lastEventSeq > 0) {
         const { msgs, ok } = hub.replayEventsSince(msg.lastEventSeq);
         if (ok) {
-          for (const m of msgs) enqueue(JSON.stringify(m));
+          for (const m of msgs) {
+            enqueue(JSON.stringify(m));
+          }
         } else {
           enqueue(JSON.stringify(hub.eventSnapshot()));
         }

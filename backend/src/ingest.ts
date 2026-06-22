@@ -83,7 +83,7 @@ async function fetchPrevDay() {
   }
 }
 
-export function runIngest(hub: Hub) {
+export const runIngest = (hub: Hub) => {
   fetchPrevDay();
   setInterval(fetchPrevDay, 5 * 60 * 1000);
   connect(hub);
@@ -91,19 +91,19 @@ export function runIngest(hub: Hub) {
   startMacroAdapter(hub);
   startHeadlineAdapter(hub);
   startSportsAdapter(hub);
-}
+};
 
-function randomItem<T>(items: readonly T[]): T {
+const randomItem = <T>(items: readonly T[]): T => {
   return items[Math.floor(Math.random() * items.length)];
-}
+};
 
-function randomSymbols(count: number): string[] {
+const randomSymbols = (count: number): string[] => {
   const picked = new Set<string>();
   while (picked.size < count) picked.add(randomItem(MARKETS));
   return [...picked];
-}
+};
 
-function emitEvent(
+const emitEvent = (
   hub: Hub,
   source: string,
   category: EventCategory,
@@ -113,7 +113,7 @@ function emitEvent(
   symbols: string[],
   topics: string[],
   url?: string,
-) {
+) => {
   const now = Date.now();
   const event: LiveEvent = {
     eventId: `${source}:${category}:${now}:${Math.random().toString(36).slice(2, 8)}`,
@@ -129,9 +129,9 @@ function emitEvent(
     ingestTs: now,
   };
   hub.ingestEvent(event);
-}
+};
 
-function startFedAdapter(hub: Hub) {
+const startFedAdapter = (hub: Hub) => {
   setInterval(() => {
     const symbols = randomSymbols(2);
     emitEvent(
@@ -145,9 +145,9 @@ function startFedAdapter(hub: Hub) {
       ["fed", "rates", "macro"],
     );
   }, 45_000);
-}
+};
 
-function startMacroAdapter(hub: Hub) {
+const startMacroAdapter = (hub: Hub) => {
   setInterval(() => {
     const symbols = randomSymbols(3);
     emitEvent(
@@ -161,9 +161,9 @@ function startMacroAdapter(hub: Hub) {
       ["macro", "cpi", "nfp", "data"],
     );
   }, 28_000);
-}
+};
 
-function startHeadlineAdapter(hub: Hub) {
+const startHeadlineAdapter = (hub: Hub) => {
   setInterval(() => {
     const symbols = randomSymbols(2);
     const body = randomItem(HEADLINE_LINES);
@@ -180,9 +180,9 @@ function startHeadlineAdapter(hub: Hub) {
       url,
     );
   }, 16_000);
-}
+};
 
-function startSportsAdapter(hub: Hub) {
+const startSportsAdapter = (hub: Hub) => {
   setInterval(() => {
     const symbols = randomSymbols(1);
     emitEvent(
@@ -196,9 +196,9 @@ function startSportsAdapter(hub: Hub) {
       ["sports", "sentiment", "flow"],
     );
   }, 20_000);
-}
+};
 
-function connect(hub: Hub) {
+const connect = (hub: Hub) => {
   const ws = new WebSocket(HL_WS);
 
   ws.on("open", () => {
@@ -240,4 +240,4 @@ function connect(hub: Hub) {
     log("error", "hyperliquid error", { err: (e as Error).message });
     ws.close();
   });
-}
+};
