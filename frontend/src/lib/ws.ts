@@ -1,10 +1,15 @@
-import { applySnapshot, applyDiff, useApp } from "./store";
-
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
-const STALE_MS = 5000;
+import {
+  applySnapshot,
+  applyDiff,
+  applyEventBatch,
+  applyEventSnapshot,
+  useApp,
+} from "./store";
+import { FRONTEND_STALE_MS, FRONTEND_WS_URL } from "../constants";
 
 let socket: WebSocket | null = null;
 let lastSeq = 0;
+let lastEventSeq = 0;
 let lastTick = Date.now();
 let backoff = 500;
 let staleTimer: number | undefined;
@@ -18,21 +23,21 @@ let staleTimer: number | undefined;
 
 const checkStale = () => {
   const conn = useApp.getState().conn;
-  if (conn === "connected" && Date.now() - lastTick > STALE_MS) {
+  if (conn === "connected" && Date.now() - lastTick > FRONTEND_STALE_MS) {
     useApp.getState().setConn("stale");
   }
 };
 
 export const connect = () => {
   useApp.getState().setConn(lastSeq > 0 ? "reconnecting" : "connecting");
-  socket = new WebSocket(WS_URL);
+  socket = new WebSocket(FRONTEND_WS_URL);
 
   socket.onopen = () => {
     backoff = 500;
     lastTick = Date.now();
     useApp.getState().setConn("connected");
-    // Resume from last applied seq; server replays or sends a snapshot.
-    socket!.send(JSON.stringify({ type: "resume", lastSeq }));
+
+    socket!.send(JSON.stringify({ type: "resume", lastSeq, lastEventSeq }));
     if (staleTimer) clearInterval(staleTimer);
     staleTimer = window.setInterval(checkStale, 1000);
   };
@@ -55,6 +60,16 @@ export const connect = () => {
       case "heartbeat":
         // keeps lastTick, avoids stale state
         break;
+      case "eventSnapshot":
+        applyEventSnapshot(msg.events);
+        lastEventSeq = msg.eventSeq;
+        break;
+      case "eventBatch":
+        applyEventBatch(msg.events);
+        lastEventSeq = msg.eventSeq;
+        break;
+      case "eventHeartbeat":
+        break;
     }
   };
 
@@ -66,7 +81,7 @@ export const connect = () => {
   };
 
   socket.onerror = () => socket?.close();
-}
+};
 
 export const initVisibility = () => {
   document.addEventListener("visibilitychange", () => {
@@ -74,9 +89,8 @@ export const initVisibility = () => {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
         connect();
       } else {
-        // socket alive but possibly behind — re-resume to reconcile.
-        socket.send(JSON.stringify({ type: "resume", lastSeq }));
+        socket.send(JSON.stringify({ type: "resume", lastSeq, lastEventSeq }));
       }
     }
   });
-}
+};

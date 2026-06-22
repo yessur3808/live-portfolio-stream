@@ -1,3 +1,5 @@
+import { MARKET_META, MAX_HISTORY_POINTS } from "../constants";
+
 export type WatchlistSort =
   | "symbol"
   | "name"
@@ -9,45 +11,10 @@ export type MarketMeta = {
   name: string;
 };
 
-const marketMeta: Record<string, MarketMeta> = {
-  BTC: { name: "Bitcoin" },
-  ETH: { name: "Ethereum" },
-  SOL: { name: "Solana" },
-  ARB: { name: "Arbitrum" },
-  AVAX: { name: "Avalanche" },
-  DOGE: { name: "Dogecoin" },
-  LINK: { name: "Chainlink" },
-  OP: { name: "Optimism" },
-  MATIC: { name: "Polygon" },
-  POL: { name: "Polygon" },
-  APT: { name: "Aptos" },
-  SUI: { name: "Sui" },
-  SEI: { name: "Sei" },
-  TIA: { name: "Celestia" },
-  INJ: { name: "Injective" },
-  LTC: { name: "Litecoin" },
-  BCH: { name: "Bitcoin Cash" },
-  NEAR: { name: "NEAR" },
-  FTM: { name: "Fantom" },
-  ATOM: { name: "Cosmos" },
-  DOT: { name: "Polkadot" },
-  ADA: { name: "Cardano" },
-  XRP: { name: "XRP" },
-  BNB: { name: "BNB" },
-  AAVE: { name: "Aave" },
-  UNI: { name: "Uniswap" },
-  RNDR: { name: "Render" },
-  WLD: { name: "Worldcoin" },
-  PEPE: { name: "Pepe" },
-  WIF: { name: "dogwifhat" },
-  ORDI: { name: "ORDI" },
-};
-
 const histories = new Map<string, number[]>();
-const MAX_HISTORY_POINTS = 24;
 
 export const getMarketName = (symbol: string) =>
-  marketMeta[symbol]?.name ?? symbol;
+  MARKET_META[symbol]?.name ?? symbol;
 
 export const recordPrice = (symbol: string, price: number) => {
   const points = histories.get(symbol) ?? [];
