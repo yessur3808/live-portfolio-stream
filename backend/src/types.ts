@@ -5,7 +5,7 @@ export interface Quote {
   ts: number;
 }
 
-export type EventCategory = "fed" | "macro" | "headline" | "sports";
+export type EventCategory = "fed" | "macro" | "headline";
 export type EventSeverity = "low" | "medium" | "high";
 
 export interface LiveEvent {

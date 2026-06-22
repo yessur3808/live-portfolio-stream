@@ -5,6 +5,7 @@ import { EventCategory, EventSeverity, LiveEvent } from "./types.js";
 
 const HL_WS = "wss://api.hyperliquid-testnet.xyz/ws";
 const HL_INFO = "https://api.hyperliquid-testnet.xyz/info";
+const NEWS_REFRESH_MS = 30 * 60 * 1000;
 
 const MARKETS = [
   "BTC",
@@ -22,41 +23,186 @@ const MARKETS = [
   "BNB",
 ];
 
-const FED_LINES = [
-  "Fed officials signaled policy remains data dependent ahead of the next meeting.",
-  "Treasury yields moved after remarks suggested caution on early cuts.",
-  "Policy path commentary shifted rate-cut odds in short-dated futures.",
-];
+type NewsItem = {
+  title: string;
+  body: string;
+  url: string;
+  publishedAt: number;
+  source: string;
+  category: EventCategory;
+  severity: EventSeverity;
+  topics: string[];
+  symbols: string[];
+};
 
-const MACRO_RELEASES = [
-  "US CPI printed slightly above consensus, lifting front-end yields.",
-  "NFP beat estimates while unemployment stayed stable.",
-  "Retail sales surprised to the upside and risk assets reacted higher.",
-  "PCE core came in-line with forecasts, volatility cooled post-release.",
-];
+type SourceFeed = {
+  name: string;
+  category: EventCategory;
+  url: string;
+  topics: string[];
+  severity: EventSeverity;
+  symbols: string[];
+  parser: (
+    text: string,
+    source: string,
+    category: EventCategory,
+    severity: EventSeverity,
+    topics: string[],
+    symbols: string[],
+  ) => NewsItem[];
+};
 
-const HEADLINE_LINES = [
-  "Large asset manager filed updated ETF documents, sparking broad crypto bids.",
-  "Exchange announced expanded derivatives products for major alt pairs.",
-  "Custody provider disclosed expanded institutional settlement rails.",
-  "Stablecoin issuer published reserve attestation and treasury update.",
-];
-
-const HEADLINE_LINKS = [
-  "https://www.reuters.com/markets/",
-  "https://www.bloomberg.com/markets",
-  "https://www.coindesk.com/markets/",
-  "https://www.theblock.co/news",
-];
-
-const SPORTS_MATCHUPS = [
-  "Knicks vs Heat",
-  "Lakers vs Nuggets",
-  "Chiefs vs Ravens",
-  "Yankees vs Red Sox",
-];
+export type NewsRefreshController = {
+  refreshNews: () => Promise<void>;
+};
 
 const prevDay = new Map<string, number>();
+const lastNewsAtBySource = new Map<string, number>();
+const lastNewsIdBySource = new Map<string, Set<string>>();
+
+const normalizeText = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const fingerprintNews = (
+  source: string,
+  title: string,
+  url: string,
+  publishedAt: number,
+) => `${source}:${title.toLowerCase()}:${url}:${publishedAt}`;
+
+const extractRssItems = (
+  text: string,
+  source: string,
+  category: EventCategory,
+  severity: EventSeverity,
+  topics: string[],
+  symbols: string[],
+) => {
+  const items: NewsItem[] = [];
+  const itemRegex = /<item[\s\S]*?<\/item>/gi;
+  const titleRegex =
+    /<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title>([\s\S]*?)<\/title>/i;
+  const linkRegex = /<link>([\s\S]*?)<\/link>/i;
+  const pubDateRegex = /<pubDate>([\s\S]*?)<\/pubDate>/i;
+  const descriptionRegex =
+    /<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/i;
+
+  for (const match of text.matchAll(itemRegex)) {
+    const chunk = match[0];
+    const title = normalizeText(
+      chunk.match(titleRegex)?.[1] ?? chunk.match(titleRegex)?.[2] ?? "",
+    );
+    const url = normalizeText(chunk.match(linkRegex)?.[1] ?? "");
+    const description = normalizeText(
+      chunk.match(descriptionRegex)?.[1] ??
+        chunk.match(descriptionRegex)?.[2] ??
+        title,
+    );
+    const publishedAt =
+      Date.parse(chunk.match(pubDateRegex)?.[1] ?? "") || Date.now();
+    if (!title || !url) continue;
+    items.push({
+      title,
+      body: description,
+      url,
+      publishedAt,
+      source,
+      category,
+      severity,
+      topics,
+      symbols,
+    });
+  }
+
+  return items;
+};
+
+const extractJsonArticles = (
+  text: string,
+  source: string,
+  category: EventCategory,
+  severity: EventSeverity,
+  topics: string[],
+  symbols: string[],
+) => {
+  const items: NewsItem[] = [];
+  try {
+    const parsed = JSON.parse(text) as {
+      articles?: Array<{
+        title?: string;
+        description?: string;
+        url?: string;
+        publishedAt?: string;
+      }>;
+    };
+    for (const article of parsed.articles ?? []) {
+      const title = normalizeText(article.title ?? "");
+      const url = normalizeText(article.url ?? "");
+      if (!title || !url) continue;
+      items.push({
+        title,
+        body: normalizeText(article.description ?? title),
+        url,
+        publishedAt: Date.parse(article.publishedAt ?? "") || Date.now(),
+        source,
+        category,
+        severity,
+        topics,
+        symbols,
+      });
+    }
+  } catch {
+    return [];
+  }
+  return items;
+};
+
+const NEWS_FEEDS: SourceFeed[] = [
+  {
+    name: "fed_press",
+    category: "fed",
+    url: "https://www.federalreserve.gov/feeds/press_all.xml",
+    topics: ["fed", "policy", "rates"],
+    severity: "high",
+    symbols: ["BTC", "ETH", "SOL"],
+    parser: extractRssItems,
+  },
+  {
+    name: "fed_speeches",
+    category: "macro",
+    url: "https://www.federalreserve.gov/feeds/speeches.xml",
+    topics: ["fed", "macro", "rates"],
+    severity: "medium",
+    symbols: ["BTC", "ETH", "SOL"],
+    parser: extractRssItems,
+  },
+  {
+    name: "sec_press",
+    category: "headline",
+    url: "https://www.sec.gov/news/pressreleases.rss",
+    topics: ["sec", "regulation", "crypto"],
+    severity: "medium",
+    symbols: ["BTC", "ETH"],
+    parser: extractRssItems,
+  },
+  {
+    name: "fomc_calendar",
+    category: "fed",
+    url: "https://www.federalreserve.gov/feeds/press_monetary.xml",
+    topics: ["fed", "fomc", "policy"],
+    severity: "high",
+    symbols: ["BTC", "ETH", "SOL"],
+    parser: extractRssItems,
+  },
+  {
+    name: "fed_testimony",
+    category: "headline",
+    url: "https://www.federalreserve.gov/feeds/testimony.xml",
+    topics: ["fed", "testimony", "macro"],
+    severity: "medium",
+    symbols: ["BTC", "ETH", "SOL"],
+    parser: extractRssItems,
+  },
+];
 
 async function fetchPrevDay() {
   try {
@@ -83,14 +229,11 @@ async function fetchPrevDay() {
   }
 }
 
-export const runIngest = (hub: Hub) => {
+export const runIngest = (hub: Hub): NewsRefreshController => {
   fetchPrevDay();
   setInterval(fetchPrevDay, 5 * 60 * 1000);
   connect(hub);
-  startFedAdapter(hub);
-  startMacroAdapter(hub);
-  startHeadlineAdapter(hub);
-  startSportsAdapter(hub);
+  return startNewsPolling(hub);
 };
 
 const randomItem = <T>(items: readonly T[]): T => {
@@ -131,71 +274,93 @@ const emitEvent = (
   hub.ingestEvent(event);
 };
 
-const startFedAdapter = (hub: Hub) => {
-  setInterval(() => {
-    const symbols = randomSymbols(2);
-    emitEvent(
-      hub,
-      "fedwire",
-      "fed",
-      Math.random() > 0.75 ? "high" : "medium",
-      "Federal Reserve policy update",
-      randomItem(FED_LINES),
-      symbols,
-      ["fed", "rates", "macro"],
-    );
-  }, 45_000);
-};
+const startNewsPolling = (hub: Hub): NewsRefreshController => {
+  const poll = async (manual = false) => {
+    for (const feed of NEWS_FEEDS) {
+      const lastRun = lastNewsAtBySource.get(feed.name) ?? 0;
+      if (!manual && Date.now() - lastRun < NEWS_REFRESH_MS) continue;
 
-const startMacroAdapter = (hub: Hub) => {
-  setInterval(() => {
-    const symbols = randomSymbols(3);
-    emitEvent(
-      hub,
-      "macrocalendar",
-      "macro",
-      Math.random() > 0.7 ? "high" : "medium",
-      "Economic release crossed wires",
-      randomItem(MACRO_RELEASES),
-      symbols,
-      ["macro", "cpi", "nfp", "data"],
-    );
-  }, 28_000);
-};
+      try {
+        const res = await fetch(feed.url, {
+          headers: {
+            accept:
+              "application/rss+xml, application/xml, text/xml, application/json;q=0.9, text/html;q=0.8",
+            "user-agent": "live-portfolio-stream/1.0 (+local-dev)",
+          },
+        });
+        if (!res.ok) {
+          log("warn", "news feed fetch failed", {
+            source: feed.name,
+            status: res.status,
+          });
+          continue;
+        }
 
-const startHeadlineAdapter = (hub: Hub) => {
-  setInterval(() => {
-    const symbols = randomSymbols(2);
-    const body = randomItem(HEADLINE_LINES);
-    const url = randomItem(HEADLINE_LINKS);
-    emitEvent(
-      hub,
-      "newswire",
-      "headline",
-      Math.random() > 0.8 ? "high" : "low",
-      "Market headline",
-      body,
-      symbols,
-      ["news", "crypto", "risk"],
-      url,
-    );
-  }, 16_000);
-};
+        const text = await res.text();
+        const items = feed.parser(
+          text,
+          feed.name,
+          feed.category,
+          feed.severity,
+          feed.topics,
+          feed.symbols,
+        );
+        const seen = lastNewsIdBySource.get(feed.name) ?? new Set<string>();
+        const freshItems = items.filter((item) => {
+          const key = fingerprintNews(
+            item.source,
+            item.title,
+            item.url,
+            item.publishedAt,
+          );
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
 
-const startSportsAdapter = (hub: Hub) => {
+        if (freshItems.length === 0) {
+          lastNewsAtBySource.set(feed.name, Date.now());
+          lastNewsIdBySource.set(feed.name, seen);
+          continue;
+        }
+
+        for (const item of freshItems) {
+          emitEvent(
+            hub,
+            item.source,
+            item.category,
+            item.severity,
+            item.title,
+            item.body,
+            item.symbols,
+            item.topics,
+            item.url,
+          );
+        }
+
+        lastNewsAtBySource.set(feed.name, Date.now());
+        lastNewsIdBySource.set(feed.name, seen);
+        log("info", "news feed refreshed", {
+          source: feed.name,
+          items: freshItems.length,
+        });
+      } catch (e) {
+        log("error", "news feed refresh failed", {
+          source: feed.name,
+          err: (e as Error).message,
+        });
+      }
+    }
+  };
+
+  void poll(true);
   setInterval(() => {
-    const symbols = randomSymbols(1);
-    emitEvent(
-      hub,
-      "sportslive",
-      "sports",
-      "low",
-      `Sports pulse: ${randomItem(SPORTS_MATCHUPS)}`,
-      "Live score momentum spiked social chatter during US session.",
-      symbols,
-      ["sports", "sentiment", "flow"],
-    );
-  }, 20_000);
+    void poll(false);
+  }, NEWS_REFRESH_MS);
+
+  return {
+    refreshNews: () => poll(true),
+  };
 };
 
 const connect = (hub: Hub) => {

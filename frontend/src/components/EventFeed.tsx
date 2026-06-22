@@ -22,7 +22,7 @@ import { alpha, styled } from "@mui/material/styles";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { useApp } from "../lib/store";
 
-const TRACKED_TOPICS = ["fed", "macro", "news", "sports"];
+const TRACKED_TOPICS = ["fed", "macro", "news"];
 const NEWS_FEED_BUTTON_WIDTH = 150;
 const NEWS_FEED_PANEL_WIDTH = 800;
 
@@ -95,7 +95,7 @@ export const EventFeed = ({
       sx={{
         position: "fixed",
         top: 0,
-        left: newsDrawerOpen ? NEWS_FEED_BUTTON_WIDTH : "100%",
+        right: newsDrawerOpen ? 0 : `-${NEWS_FEED_PANEL_WIDTH}px`,
         width: {
           xs: `calc(100vw - ${NEWS_FEED_BUTTON_WIDTH}px)`,
           lg: NEWS_FEED_PANEL_WIDTH,
@@ -104,7 +104,7 @@ export const EventFeed = ({
         height: { xs: "100vh", lg: "80vh" },
         zIndex: 1250,
         overflow: "visible",
-        transition: "left 320ms cubic-bezier(0.22, 1, 0.36, 1)",
+        transition: "right 320ms cubic-bezier(0.22, 1, 0.36, 1)",
         borderRadius: "0 0 12px 12px",
         pl: 2,
         pr: 2,

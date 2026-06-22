@@ -4,7 +4,7 @@ import { recordPrice } from "./market";
 export type Quote = { last: number; dayChangePct: number; ts: number };
 export type Position = { symbol: string; qty: number; avgCost: number };
 export type ConnState = "connecting" | "connected" | "reconnecting" | "stale";
-export type EventCategory = "fed" | "macro" | "headline" | "sports";
+export type EventCategory = "fed" | "macro" | "headline";
 export type EventSeverity = "low" | "medium" | "high";
 
 export type LiveEvent = {
@@ -213,7 +213,7 @@ export const useApp = create<AppState>((set) => ({
     })),
   events: [],
   symbolAlertCount: {},
-  followedTopics: ["fed", "macro", "news", "sports"],
+  followedTopics: ["fed", "macro", "news"],
   mutedTopics: [],
   followedSymbols: [],
   toastQueue: [],
