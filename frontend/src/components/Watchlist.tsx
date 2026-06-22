@@ -12,24 +12,25 @@ import {
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import SearchIcon from "@mui/icons-material/Search";
+import {
+  WATCHLIST_HEADER_COLUMNS,
+  WATCHLIST_LIST_HEADER_HEIGHT,
+  WATCHLIST_ROW_HEIGHT,
+  WATCHLIST_TABLE_COLUMNS,
+} from "../constants";
 import { useApp, prices } from "../lib/store";
 import { getMarketName, getMomentumPct } from "../lib/market";
 import type { WatchlistSort } from "../lib/market";
 import { subscribeSymbol } from "../lib/raf";
 import { RollingLiveTrendCanvas } from "./RollingLiveTrendCanvas";
 
-const ROW_HEIGHT = 72;
-const LIST_HEADER_HEIGHT = 44;
-const TABLE_COLUMNS =
-  "minmax(0, 1.1fr) minmax(96px, 0.7fr) minmax(89px, 0.7fr) 166px";
-
 const SymbolButtonBase = styled(ButtonBase)({
   width: "100%",
   display: "grid",
-  gridTemplateColumns: TABLE_COLUMNS,
+  gridTemplateColumns: WATCHLIST_TABLE_COLUMNS,
   alignItems: "center",
   padding: "14px 16px",
-  minHeight: ROW_HEIGHT,
+  minHeight: WATCHLIST_ROW_HEIGHT,
   textAlign: "left",
   borderBottom: "1px solid rgba(255,255,255,0.06)",
   transition: "background-color 160ms ease, transform 160ms ease",
@@ -37,13 +38,6 @@ const SymbolButtonBase = styled(ButtonBase)({
     backgroundColor: "rgba(255,255,255,0.03)",
   },
 });
-
-const headerColumns: Array<{ value: WatchlistSort; label: string }> = [
-  { value: "symbol", label: "Asset" },
-  { value: "price", label: "Price" },
-  { value: "dayChangePct", label: "Change" },
-  { value: "momentum", label: "Rolling live trend" },
-];
 
 const HeaderSortButton = styled(ButtonBase)({
   width: "100%",
@@ -184,7 +178,8 @@ export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
   }, [direction, filteredSymbols, sortBy, sortSeed]);
 
   const listHeight =
-    LIST_HEADER_HEIGHT + Math.max(visibleSymbols.length, 1) * ROW_HEIGHT;
+    WATCHLIST_LIST_HEADER_HEIGHT +
+    Math.max(visibleSymbols.length, 1) * WATCHLIST_ROW_HEIGHT;
 
   const handleHeaderSort = (value: WatchlistSort) => {
     if (sortBy === value) {
@@ -294,8 +289,8 @@ export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
         <Box sx={{ position: "relative", minHeight: listHeight }}>
           <RollingLiveTrendCanvas
             symbols={visibleSymbols}
-            rowHeight={ROW_HEIGHT}
-            headerHeight={LIST_HEADER_HEIGHT}
+            rowHeight={WATCHLIST_ROW_HEIGHT}
+            headerHeight={WATCHLIST_LIST_HEADER_HEIGHT}
           />
 
           <Box
@@ -304,10 +299,10 @@ export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
               top: stickyTopHeight,
               zIndex: 3,
               display: "grid",
-              gridTemplateColumns: TABLE_COLUMNS,
+              gridTemplateColumns: WATCHLIST_TABLE_COLUMNS,
               alignItems: "center",
               px: 2,
-              height: LIST_HEADER_HEIGHT,
+              height: WATCHLIST_LIST_HEADER_HEIGHT,
               color: "text.secondary",
               fontSize: 12,
               letterSpacing: 0.9,
@@ -317,7 +312,7 @@ export const Watchlist = ({ onSelect }: { onSelect: (s: string) => void }) => {
               borderBottom: "1px solid rgba(255,255,255,0.06)",
             }}
           >
-            {headerColumns.map((column) => {
+            {WATCHLIST_HEADER_COLUMNS.map((column) => {
               const active = sortBy === column.value;
               return (
                 <HeaderSortButton

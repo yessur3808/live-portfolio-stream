@@ -1,11 +1,12 @@
+import {
+  EVENT_BATCH_INTERVAL_MS,
+  EVENT_RING_SIZE,
+  EVENT_SNAPSHOT_LIMIT,
+  QUOTE_BATCH_INTERVAL_MS,
+  QUOTE_RING_SIZE,
+} from "./constants.js";
 import { Quote, FieldDiff, ServerMsg, Client, LiveEvent } from "./types.js";
 import { log } from "./logger.js";
-
-const BATCH_INTERVAL_MS = 75;
-const RING_SIZE = 2000;
-const EVENT_BATCH_INTERVAL_MS = 1000;
-const EVENT_RING_SIZE = 2000;
-const EVENT_SNAPSHOT_LIMIT = 120;
 
 interface RingEntry {
   seq: number;
@@ -24,7 +25,7 @@ export function createHub() {
   let seq = 0;
   let eventSeq = 0;
 
-  const ring: RingEntry[] = new Array(RING_SIZE);
+  const ring: RingEntry[] = new Array(QUOTE_RING_SIZE);
   let rhead = 0;
   let rlen = 0;
 
@@ -53,8 +54,8 @@ export function createHub() {
     for (const d of pending.values()) {
       seq++;
       ring[rhead] = { seq, change: d };
-      rhead = (rhead + 1) % RING_SIZE;
-      if (rlen < RING_SIZE) rlen++;
+      rhead = (rhead + 1) % QUOTE_RING_SIZE;
+      if (rlen < QUOTE_RING_SIZE) rlen++;
       changes.push(d);
     }
     pending = new Map();
@@ -82,11 +83,11 @@ export function createHub() {
   }
 
   function start() {
-    setInterval(flushBatch, BATCH_INTERVAL_MS);
+    setInterval(flushBatch, QUOTE_BATCH_INTERVAL_MS);
     setInterval(flushEventBatch, EVENT_BATCH_INTERVAL_MS);
     log("info", "hub started", {
-      batchMs: BATCH_INTERVAL_MS,
-      ringSize: RING_SIZE,
+      batchMs: QUOTE_BATCH_INTERVAL_MS,
+      ringSize: QUOTE_RING_SIZE,
       eventBatchMs: EVENT_BATCH_INTERVAL_MS,
       eventRingSize: EVENT_RING_SIZE,
     });
@@ -126,13 +127,13 @@ export function createHub() {
   function replaySince(lastSeq: number): { msgs: ServerMsg[]; ok: boolean } {
     if (rlen === 0) return { msgs: [], ok: lastSeq === seq };
 
-    const oldestIdx = (rhead - rlen + RING_SIZE) % RING_SIZE;
+    const oldestIdx = (rhead - rlen + QUOTE_RING_SIZE) % QUOTE_RING_SIZE;
     const oldestSeq = ring[oldestIdx].seq;
     if (lastSeq + 1 < oldestSeq) return { msgs: [], ok: false };
 
     const msgs: ServerMsg[] = [];
     for (let i = 0; i < rlen; i++) {
-      const e = ring[(oldestIdx + i) % RING_SIZE];
+      const e = ring[(oldestIdx + i) % QUOTE_RING_SIZE];
       if (e.seq > lastSeq) {
         msgs.push({
           type: "diff",

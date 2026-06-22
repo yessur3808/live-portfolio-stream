@@ -1,4 +1,12 @@
 import { create } from "zustand";
+import {
+  DEFAULT_FOLLOWED_TOPICS,
+  DEFAULT_POSITIONS,
+  DEFAULT_WATCHLIST,
+  STORE_MAX_EVENTS,
+  STORE_MAX_TOASTS,
+  STORE_TOAST_COOLDOWN_MS,
+} from "../constants";
 import { recordPrice } from "./market";
 
 export type Quote = { last: number; dayChangePct: number; ts: number };
@@ -26,9 +34,6 @@ export type RankedEvent = LiveEvent & { relevance: number };
 export const prices = new Map<string, Quote>();
 export const dirty = new Set<string>();
 
-const MAX_EVENTS = 120;
-const MAX_TOASTS = 5;
-const TOAST_COOLDOWN_MS = 90_000;
 const lastToastAtByEvent = new Map<string, number>();
 
 export const applySnapshot = (snap: Record<string, Quote>) => {
@@ -107,7 +112,7 @@ const upsertEvents = (incoming: LiveEvent[], replace: boolean) => {
 
   const events = [...bucket.values()]
     .sort((a, b) => b.ingestTs - a.ingestTs)
-    .slice(0, MAX_EVENTS);
+    .slice(0, STORE_MAX_EVENTS);
 
   const symbolAlertCount: Record<string, number> = {};
   for (const event of events) {
@@ -124,12 +129,12 @@ const upsertEvents = (incoming: LiveEvent[], replace: boolean) => {
       .filter((event) => event.relevance >= 90)
       .filter((event) => {
         const lastShown = lastToastAtByEvent.get(event.eventId) ?? 0;
-        if (now - lastShown < TOAST_COOLDOWN_MS) return false;
+        if (now - lastShown < STORE_TOAST_COOLDOWN_MS) return false;
         lastToastAtByEvent.set(event.eventId, now);
         return true;
       });
     toastQueue = [...state.toastQueue, ...toasts]
-      .slice(-MAX_TOASTS)
+      .slice(-STORE_MAX_TOASTS)
       .sort((a, b) => a.ingestTs - b.ingestTs);
   }
 
@@ -165,45 +170,8 @@ type AppState = {
 export const useApp = create<AppState>((set) => ({
   conn: "connecting",
   setConn: (c) => set({ conn: c }),
-  watchlist: [
-    "BTC",
-    "ETH",
-    "SOL",
-    "ARB",
-    "AVAX",
-    "DOGE",
-    "LINK",
-    "OP",
-    "MATIC",
-    "APT",
-    "SUI",
-    "SEI",
-    "TIA",
-    "INJ",
-    "LTC",
-    "BCH",
-    "NEAR",
-    "FTM",
-    "ATOM",
-    "DOT",
-    "ADA",
-    "XRP",
-    "BNB",
-    "AAVE",
-    "UNI",
-    "RNDR",
-    "WLD",
-    "PEPE",
-    "WIF",
-    "ORDI",
-  ],
-  positions: [
-    { symbol: "BTC", qty: 0.5, avgCost: 60000 },
-    { symbol: "ETH", qty: 4, avgCost: 3000 },
-    { symbol: "SOL", qty: 50, avgCost: 140 },
-    { symbol: "ARB", qty: 2000, avgCost: 1.1 },
-    { symbol: "DOGE", qty: 10000, avgCost: 0.12 },
-  ],
+  watchlist: [...DEFAULT_WATCHLIST],
+  positions: DEFAULT_POSITIONS.map((position) => ({ ...position })),
   toggleWatch: (sym) =>
     set((s) => ({
       watchlist: s.watchlist.includes(sym)
@@ -212,7 +180,7 @@ export const useApp = create<AppState>((set) => ({
     })),
   events: [],
   symbolAlertCount: {},
-  followedTopics: ["fed", "macro", "news"],
+  followedTopics: [...DEFAULT_FOLLOWED_TOPICS],
   mutedTopics: [],
   followedSymbols: [],
   toastQueue: [],

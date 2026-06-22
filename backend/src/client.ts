@@ -1,10 +1,8 @@
 import { WebSocket } from "ws";
+import { MAX_BUFFERED_BYTES, PING_INTERVAL_MS } from "./constants.js";
 import { Hub } from "./hub.js";
 import { ClientMsg, Client } from "./types.js";
 import { log } from "./logger.js";
-
-const MAX_BUFFERED_BYTES = 1 << 20;
-const PING_INTERVAL_MS = 20_000;
 
 export function handleConnection(ws: WebSocket, hub: Hub) {
   let isAlive = true;

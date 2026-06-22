@@ -1,43 +1,10 @@
 import { Box, Chip, Typography } from "@mui/material";
+import { CONN_VISUALS } from "../constants";
 import { useApp } from "../lib/store";
-
-type ConnVisual = {
-  text: string;
-  textColor: string;
-  bg: string;
-  border: string;
-};
-
-const VISUALS: Record<string, ConnVisual> = {
-  connecting: {
-    text: "connecting",
-    textColor: "#86efac",
-    bg: "rgba(34,197,94,0.14)",
-    border: "rgba(134,239,172,0.38)",
-  },
-  connected: {
-    text: "connected",
-    textColor: "#86efac",
-    bg: "rgba(34,197,94,0.14)",
-    border: "rgba(134,239,172,0.38)",
-  },
-  reconnecting: {
-    text: "reconnecting",
-    textColor: "#fde68a",
-    bg: "rgba(245,158,11,0.16)",
-    border: "rgba(252,211,77,0.42)",
-  },
-  stale: {
-    text: "disconnected",
-    textColor: "#fca5a5",
-    bg: "rgba(239,68,68,0.14)",
-    border: "rgba(252,165,165,0.4)",
-  },
-};
 
 export const ConnBadge = () => {
   const conn = useApp((s) => s.conn);
-  const visual = VISUALS[conn] ?? VISUALS.stale;
+  const visual = CONN_VISUALS[conn] ?? CONN_VISUALS.stale;
 
   return (
     <Chip

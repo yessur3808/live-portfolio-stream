@@ -1,27 +1,16 @@
 import { WebSocket } from "ws";
+import {
+  DEFAULT_NEWS_REFRESH_MS,
+  HYPERLIQUID_INFO_URL,
+  HYPERLIQUID_WS_URL,
+  MARKETS,
+  NEWS_FEEDS,
+  type NewsFeedConfig,
+  PREV_DAY_REFRESH_MS,
+} from "./constants.js";
 import { Hub } from "./hub.js";
 import { log } from "./logger.js";
 import { EventCategory, EventSeverity, LiveEvent } from "./types.js";
-
-const HL_WS = "wss://api.hyperliquid-testnet.xyz/ws";
-const HL_INFO = "https://api.hyperliquid-testnet.xyz/info";
-const NEWS_REFRESH_MS = 30 * 60 * 1000;
-
-const MARKETS = [
-  "BTC",
-  "ETH",
-  "SOL",
-  "ARB",
-  "AVAX",
-  "DOGE",
-  "LINK",
-  "OP",
-  "MATIC",
-  "DOT",
-  "ADA",
-  "XRP",
-  "BNB",
-];
 
 type NewsItem = {
   title: string;
@@ -35,13 +24,7 @@ type NewsItem = {
   symbols: string[];
 };
 
-type SourceFeed = {
-  name: string;
-  category: EventCategory;
-  url: string;
-  topics: string[];
-  severity: EventSeverity;
-  symbols: string[];
+type SourceFeed = NewsFeedConfig & {
   parser: (
     text: string,
     source: string,
@@ -58,11 +41,15 @@ export type NewsRefreshResult = {
 
 export type NewsRefreshController = {
   refreshNews: () => Promise<NewsRefreshResult>;
+  getRefreshIntervalMs: () => number;
+  setRefreshIntervalMs: (nextMs: number) => number;
 };
 
 const prevDay = new Map<string, number>();
 const lastNewsAtBySource = new Map<string, number>();
 const lastNewsIdBySource = new Map<string, Set<string>>();
+let newsRefreshMs = DEFAULT_NEWS_REFRESH_MS;
+let nextRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 const normalizeText = (value: string) => value.replace(/\s+/g, " ").trim();
 
@@ -160,57 +147,14 @@ const extractJsonArticles = (
   return items;
 };
 
-const NEWS_FEEDS: SourceFeed[] = [
-  {
-    name: "fed_press",
-    category: "fed",
-    url: "https://www.federalreserve.gov/feeds/press_all.xml",
-    topics: ["fed", "policy", "rates"],
-    severity: "high",
-    symbols: ["BTC", "ETH", "SOL"],
-    parser: extractRssItems,
-  },
-  {
-    name: "fed_speeches",
-    category: "macro",
-    url: "https://www.federalreserve.gov/feeds/speeches.xml",
-    topics: ["fed", "macro", "rates"],
-    severity: "medium",
-    symbols: ["BTC", "ETH", "SOL"],
-    parser: extractRssItems,
-  },
-  {
-    name: "sec_press",
-    category: "headline",
-    url: "https://www.sec.gov/news/pressreleases.rss",
-    topics: ["sec", "regulation", "crypto"],
-    severity: "medium",
-    symbols: ["BTC", "ETH"],
-    parser: extractRssItems,
-  },
-  {
-    name: "fomc_calendar",
-    category: "fed",
-    url: "https://www.federalreserve.gov/feeds/press_monetary.xml",
-    topics: ["fed", "fomc", "policy"],
-    severity: "high",
-    symbols: ["BTC", "ETH", "SOL"],
-    parser: extractRssItems,
-  },
-  {
-    name: "fed_testimony",
-    category: "headline",
-    url: "https://www.federalreserve.gov/feeds/testimony.xml",
-    topics: ["fed", "testimony", "macro"],
-    severity: "medium",
-    symbols: ["BTC", "ETH", "SOL"],
-    parser: extractRssItems,
-  },
-];
+const SOURCE_FEEDS: SourceFeed[] = NEWS_FEEDS.map((feed) => ({
+  ...feed,
+  parser: extractRssItems,
+}));
 
 async function fetchPrevDay() {
   try {
-    const res = await fetch(HL_INFO, {
+    const res = await fetch(HYPERLIQUID_INFO_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ type: "metaAndAssetCtxs" }),
@@ -235,7 +179,7 @@ async function fetchPrevDay() {
 
 export const runIngest = (hub: Hub): NewsRefreshController => {
   fetchPrevDay();
-  setInterval(fetchPrevDay, 5 * 60 * 1000);
+  setInterval(fetchPrevDay, PREV_DAY_REFRESH_MS);
   connect(hub);
   return startNewsPolling(hub);
 };
@@ -279,12 +223,19 @@ const emitEvent = (
 };
 
 const startNewsPolling = (hub: Hub): NewsRefreshController => {
+  const scheduleNextPoll = () => {
+    if (nextRefreshTimer) clearTimeout(nextRefreshTimer);
+    nextRefreshTimer = setTimeout(() => {
+      void poll(false);
+    }, newsRefreshMs);
+  };
+
   const poll = async (manual = false) => {
     let emitted = 0;
 
-    for (const feed of NEWS_FEEDS) {
+    for (const feed of SOURCE_FEEDS) {
       const lastRun = lastNewsAtBySource.get(feed.name) ?? 0;
-      if (!manual && Date.now() - lastRun < NEWS_REFRESH_MS) continue;
+      if (!manual && Date.now() - lastRun < newsRefreshMs) continue;
 
       try {
         const res = await fetch(feed.url, {
@@ -359,21 +310,25 @@ const startNewsPolling = (hub: Hub): NewsRefreshController => {
       }
     }
 
+    scheduleNextPoll();
     return { emitted };
   };
 
   void poll(true);
-  setInterval(() => {
-    void poll(false);
-  }, NEWS_REFRESH_MS);
 
   return {
     refreshNews: () => poll(true),
+    getRefreshIntervalMs: () => newsRefreshMs,
+    setRefreshIntervalMs: (nextMs: number) => {
+      newsRefreshMs = nextMs;
+      scheduleNextPoll();
+      return newsRefreshMs;
+    },
   };
 };
 
 const connect = (hub: Hub) => {
-  const ws = new WebSocket(HL_WS);
+  const ws = new WebSocket(HYPERLIQUID_WS_URL);
 
   ws.on("open", () => {
     ws.send(

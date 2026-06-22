@@ -20,37 +20,26 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha, styled } from "@mui/material/styles";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  MIN_REFRESH_SPIN_MS,
+  NEWS_FEED_BUTTON_WIDTH,
+  NEWS_FEED_PANEL_WIDTH,
+  NEWS_REFRESH_OPTIONS,
+  NEWS_SEVERITY_COLOR,
+  NEWS_SETTINGS_ENDPOINT,
+  REFRESH_NEWS_ENDPOINT,
+  TRACKED_TOPICS,
+} from "../constants";
 import { useApp } from "../lib/store";
-
-const TRACKED_TOPICS = ["fed", "macro", "news"];
-const NEWS_FEED_BUTTON_WIDTH = 150;
-const NEWS_FEED_PANEL_WIDTH = 800;
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
-const MIN_REFRESH_SPIN_MS = 500;
-
-const refreshEndpoint = (() => {
-  try {
-    const url = new URL(WS_URL);
-    url.protocol = url.protocol === "wss:" ? "https:" : "http:";
-    url.pathname = "/admin/refresh-news";
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return "http://localhost:8080/admin/refresh-news";
-  }
-})();
-
-const severityColor = {
-  low: "rgba(125,211,252,0.18)",
-  medium: "rgba(250,204,21,0.18)",
-  high: "rgba(251,113,133,0.18)",
-} as const;
 
 type RefreshResponse = {
   status: string;
   emitted?: number;
+};
+
+type RefreshSettingsResponse = {
+  refreshIntervalMs: number;
 };
 
 const TopicSwitch = styled(Switch)(({ theme }) => ({
@@ -100,11 +89,51 @@ export const EventFeed = ({
   const toggleTopicFollow = useApp((s) => s.toggleTopicFollow);
   const toggleTopicMute = useApp((s) => s.toggleTopicMute);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
+  const [frequencyAnchor, setFrequencyAnchor] = useState<HTMLElement | null>(
+    null,
+  );
   const [pendingLink, setPendingLink] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshStatus, setRefreshStatus] = useState<string | null>(null);
+  const [refreshIntervalMs, setRefreshIntervalMs] = useState(
+    NEWS_REFRESH_OPTIONS[3].value,
+  );
+  const [updatingFrequency, setUpdatingFrequency] = useState(false);
 
   const menuOpen = Boolean(filterAnchor);
+  const frequencyMenuOpen = Boolean(frequencyAnchor);
+  const refreshLabel =
+    NEWS_REFRESH_OPTIONS.find((option) => option.value === refreshIntervalMs)
+      ?.label ?? "30 minutes";
+
+  useEffect(() => {
+    let active = true;
+
+    void fetch(NEWS_SETTINGS_ENDPOINT)
+      .then((res) => {
+        if (!res.ok)
+          throw new Error(`Settings failed with status ${res.status}`);
+        return res.json() as Promise<RefreshSettingsResponse>;
+      })
+      .then((payload) => {
+        if (!active) return;
+        if (
+          NEWS_REFRESH_OPTIONS.some(
+            (option) => option.value === payload.refreshIntervalMs,
+          )
+        ) {
+          setRefreshIntervalMs(payload.refreshIntervalMs);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setRefreshIntervalMs(NEWS_REFRESH_OPTIONS[3].value);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleOpenLink = () => {
     if (!pendingLink) return;
@@ -119,7 +148,7 @@ export const EventFeed = ({
     setRefreshStatus(null);
     const startedAt = Date.now();
     try {
-      const res = await fetch(refreshEndpoint, { method: "POST" });
+      const res = await fetch(REFRESH_NEWS_ENDPOINT, { method: "POST" });
       if (!res.ok) {
         throw new Error(`Refresh failed with status ${res.status}`);
       }
@@ -147,6 +176,33 @@ export const EventFeed = ({
       setRefreshStatus("Refresh failed");
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleSelectFrequency = async (nextMs: number) => {
+    if (updatingFrequency || nextMs === refreshIntervalMs) {
+      setFrequencyAnchor(null);
+      return;
+    }
+
+    setUpdatingFrequency(true);
+    try {
+      const res = await fetch(NEWS_SETTINGS_ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ refreshIntervalMs: nextMs }),
+      });
+      if (!res.ok) {
+        throw new Error(`Settings failed with status ${res.status}`);
+      }
+      const payload = (await res.json()) as RefreshSettingsResponse;
+      setRefreshIntervalMs(payload.refreshIntervalMs);
+      setRefreshStatus(null);
+    } catch {
+      setRefreshStatus("Auto refresh update failed");
+    } finally {
+      setUpdatingFrequency(false);
+      setFrequencyAnchor(null);
     }
   };
 
@@ -372,17 +428,86 @@ export const EventFeed = ({
               </Tooltip>
               <Chip
                 size="small"
-                label={refreshStatus ?? "Auto 30m"}
+                label={refreshStatus ?? `Auto ${refreshLabel}`}
+                onClick={(event) => setFrequencyAnchor(event.currentTarget)}
                 sx={{
                   height: 24,
                   border: "1px solid rgba(255,255,255,0.16)",
                   bgcolor: "rgba(255,255,255,0.06)",
                   color: "text.secondary",
                   fontWeight: 700,
+                  cursor: "pointer",
                 }}
               />
             </Box>
           </Box>
+
+          <Menu
+            open={frequencyMenuOpen}
+            anchorEl={frequencyAnchor}
+            onClose={() => setFrequencyAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  mt: 0.8,
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  bgcolor: "rgba(10,14,24,0.98)",
+                  backdropFilter: "blur(12px)",
+                  p: 1,
+                  minWidth: 170,
+                },
+              },
+            }}
+          >
+            <Typography
+              sx={{
+                px: 1,
+                pb: 0.75,
+                fontSize: 12,
+                letterSpacing: 0.8,
+                textTransform: "uppercase",
+                color: "text.secondary",
+              }}
+            >
+              Auto refresh
+            </Typography>
+            <Box sx={{ display: "grid", gap: 0.45 }}>
+              {NEWS_REFRESH_OPTIONS.map((option) => {
+                const selected = option.value === refreshIntervalMs;
+                return (
+                  <Button
+                    key={option.value}
+                    size="small"
+                    onClick={() => void handleSelectFrequency(option.value)}
+                    disabled={updatingFrequency && !selected}
+                    sx={{
+                      justifyContent: "space-between",
+                      px: 1,
+                      py: 0.7,
+                      borderRadius: "10px",
+                      border: "1px solid rgba(255,255,255,0.09)",
+                      bgcolor: selected
+                        ? "rgba(96,165,250,0.16)"
+                        : "rgba(255,255,255,0.03)",
+                      color: selected ? "#bfdbfe" : "text.primary",
+                      textTransform: "none",
+                      fontWeight: selected ? 800 : 600,
+                      "&:hover": {
+                        bgcolor: selected
+                          ? "rgba(96,165,250,0.2)"
+                          : "rgba(255,255,255,0.08)",
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </Button>
+                );
+              })}
+            </Box>
+          </Menu>
 
           <Menu
             open={menuOpen}
@@ -525,7 +650,7 @@ export const EventFeed = ({
                       label={`${event.severity} · ${event.relevance}`}
                       sx={{
                         height: 20,
-                        bgcolor: severityColor[event.severity],
+                        bgcolor: NEWS_SEVERITY_COLOR[event.severity],
                         border: "1px solid rgba(255,255,255,0.15)",
                         textTransform: "capitalize",
                         fontWeight: 700,

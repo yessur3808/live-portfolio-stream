@@ -5,9 +5,7 @@ import {
   applyEventSnapshot,
   useApp,
 } from "./store";
-
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
-const STALE_MS = 5000;
+import { FRONTEND_STALE_MS, FRONTEND_WS_URL } from "../constants";
 
 let socket: WebSocket | null = null;
 let lastSeq = 0;
@@ -25,14 +23,14 @@ let staleTimer: number | undefined;
 
 const checkStale = () => {
   const conn = useApp.getState().conn;
-  if (conn === "connected" && Date.now() - lastTick > STALE_MS) {
+  if (conn === "connected" && Date.now() - lastTick > FRONTEND_STALE_MS) {
     useApp.getState().setConn("stale");
   }
 };
 
 export const connect = () => {
   useApp.getState().setConn(lastSeq > 0 ? "reconnecting" : "connecting");
-  socket = new WebSocket(WS_URL);
+  socket = new WebSocket(FRONTEND_WS_URL);
 
   socket.onopen = () => {
     backoff = 500;
